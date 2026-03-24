@@ -1,5 +1,9 @@
-# Exercise 6: Unsupervised learning (word embedding)
-
+---
+title: "Exercise 6: Unsupervised learning (word embedding)"
+author: "Zhitong Chen"
+date: "2026-03-34"
+output: html_document
+---
 ## Introduction
 
 The hands-on exercise for this week focuses on word embedding and provides an overview of the data structures, and functions relevant for, estimating word vectors for word-embedding analyses.
@@ -446,4 +450,98 @@ We can see, here, then that our embeddings seem to make sense. We zoomed in firs
 ## Exercises
 
 1. Inspect and visualize the nearest neighbour synonyms of other relevant words in the tweets corpus
+
+```{r}
+# Find nearest neighbors for the word "labour" 
+# Extract the embedding vector for "labour" (National Health Service)
+word_labour <- glove_embedding["labour", , drop = FALSE]
+
+# Compute cosine similarity between "labour" and all other words
+cos_sim_labour <- sim2(x = glove_embedding, y = word_labour, method = "cosine", norm = "l2")
+
+# Select the top 25 most similar words and store as a data frame
+select_labour <- data.frame(
+  rownames(as.data.frame(head(sort(cos_sim_labour[,1], decreasing = TRUE), 25)))
+)
+colnames(select_labour) <- "word"
+
+# Join with UMAP coordinates to get 2D positions for plotting
+selected_words_labour <- df_glove_umap %>%
+  inner_join(y = select_labour, by = "word")
+
+# 1b. Plot nearest neighbors of "labour" 
+ggplot(selected_words_labour, aes(x = UMAP1, y = UMAP2)) +
+  geom_point(show.legend = FALSE) +
+  geom_text(aes(label = word), show.legend = FALSE,
+            size = 2.5, vjust = -1.5, hjust = 0) +
+  labs(title = "GloVe word embedding: words related to 'labour'") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, size = 14))
+
+# 1c. Find nearest neighbors for the word "immigration"
+word_immigration <- glove_embedding["immigration",, drop = FALSE]
+cos_sim_immigration <- sim2(x = glove_embedding, y = word_immigration,
+                            method = "cosine", norm = "l2")
+
+select_immigration <- data.frame(
+  rownames(as.data.frame(head(sort(cos_sim_immigration[,1], decreasing = TRUE), 25)))
+)
+colnames(select_immigration) <- "word"
+
+selected_words_immigration <- df_glove_umap %>%
+  inner_join(y = select_immigration, by = "word")
+
+# 1d. Plot nearest neighbors of "immigration" 
+ggplot(selected_words_immigration, aes(x = UMAP1, y = UMAP2)) +
+  geom_point(show.legend = FALSE, size = 2) +
+  geom_text(aes(label = word), show.legend = FALSE,
+            size = 2, 
+            vjust = -0.8, hjust = 0.5, 
+            check_overlap = TRUE) +  
+  labs(title = "GloVe word embedding: words related to 'immigration'") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, size = 14))
+ggsave("immigration_embedding_final.png", width = 12, height = 7, dpi = 300)
+```
+Interpretation:
+This analysis employed GloVe word embeddings, cosine similarity, and UMAP dimensionality reduction to examine the semantic neighbourhoods of the politically salient terms labour and immigration within a Twitter corpus, revealing distinct yet intersecting patterns in UK public political discourse. For labour, the nearest neighbours form a coherent cluster anchored to the UK Labour Party’s core identity and policy priorities, with terms such as government, movement, working, and committed reflecting its ideological focus on workers’ rights and governance, while benefits, global, and struggle signal engagement with social welfare, economic policy, and inequality; the tight UMAP clustering confirms strong semantic coherence, with scattered outliers representing context-specific policy associations and conversational social media rhetoric. For immigration, the semantic space is dominated by policy, governance, and systemic debate, with central terms including policy, control, power, and systemframing immigration as a core state regulatory issue, and economic, benefits, and global linking it to ongoing debates about migrant economic contributions and globalisation, while outliers like Australianreference comparative policy models in UK political discussion. Comparatively, labour is rooted in party identity and social policy, while immigration is centred on state governance and economic impact, with shared terms such as global and benefits highlighting key intersections in debates about migrant welfare and Labour Party immigration policy. Overall, this analysis demonstrates the utility of GloVe and UMAP for uncovering latent semantic structures in social media text, providing empirical insight into how these politically salient terms are constructed in public discourse.
+
 2. Identify another region of interest in the GloVe-trained model and visualize
+```{r}
+# Reproduce the full GloVe UMAP overview plot and mark the region of interest with a rectangle
+ggplot(df_glove_umap) +
+  geom_point(aes(x = UMAP1, y = UMAP2), colour = "blue", size = 0.05) +
+  ggplot2::annotate("rect",
+                    xmin = -3, xmax = -2,   
+                    ymin = 5, ymax = 7,    # after inspecting the full plot
+                    alpha = 0.2) +
+  labs(title = "GloVe UMAP - full view with region of interest highlighted") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, size = 14))
+
+# Zoom into the selected region and label the words 
+# Filter to only words within the bounding box of the selected region
+region_of_interest <- df_glove_umap %>%
+  filter(UMAP1 > 2 & UMAP1 < 4 &    # horizontal bounds of the region
+         UMAP2 > -3 & UMAP2 < -1)    # vertical bounds of the region
+
+region_clean <- region_of_interest %>%
+  filter(
+    nchar(word) > 3,  
+  )
+
+set.seed(123)
+region_sampled <- region_clean %>% sample_n(100)
+
+ggplot(region_sampled, aes(x = UMAP1, y = UMAP2)) +
+  geom_point(colour = "blue", size = 1.5) +
+  geom_text(aes(label = word), size = 1.8, vjust = -0.8, hjust = 0.5, check_overlap = TRUE) +
+  labs(title = "GloVe UMAP - zoomed view of selected region (filtered & sampled)") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, size = 14))
+
+ggsave("Exercise2_zoomed_clean.png", width = 16, height = 10, dpi = 300)
+
+```
+Interpretation:
+This exercise explores a manually selected region of interest within the 2D UMAP projection of the GloVe word embedding space, trained on a UK political Twitter corpus. The full UMAP plot visualizes the global semantic structure of the vocabulary, with the highlighted sub-region zoomed in, filtered to remove non-substantive terms (e.g., usernames, hashtags, stopwords, and numeric strings), and sampled to ensure visual clarity. The refined zoomed plot reveals a thematically coherent semantic cluster centered on UK parliamentary and political discourse, encompassing political actors (e.g., @jeremycorbyn, @RuthNewportWest), policy-related terms (e.g., infrastructure, #ScotBudget), and conversational social media language. This analysis validates the utility of UMAP for uncovering latent sub-thematic structures within high-dimensional text embeddings, complementing the prior nearest-neighbour analysis of politically salient terms like labour and immigration by contextualizing their broader semantic neighbourhood in the corpus.
